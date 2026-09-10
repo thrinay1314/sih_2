@@ -18,4 +18,4 @@
  * To reset:
  *   localStorage.removeItem('KISANLINK_API_BASE');
  */
-window.API_BASE = window.API_BASE || '';
+window.API_BASE = 'https://sih-2-850l.onrender.com';
