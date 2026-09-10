@@ -539,10 +539,18 @@ async function deleteUser(id) {
   return removed;
 }
 
-module.exports = {
-  getUsers, saveUsers, findUser, addUser, deleteUser,
-  getBuyers, saveBuyers, addBuyer,
-  getCrops, saveCrops, addCrop, updateCropStatus, removeCrop,
-  getDeals, saveDeals, addDeal, advanceDealStage,
-  getListings, saveListings, updateListingStatus, removeListing
-};
+// Auto-switch: If MySQL credentials or connection string are supplied in environment variables,
+// seamlessly delegate all calls to the production MySQL engine.
+const isMySQLConfigured = Boolean(process.env.DB_HOST || process.env.MYSQL_URL || process.env.DATABASE_URL);
+
+if (isMySQLConfigured) {
+  module.exports = require('./db-mysql');
+} else {
+  module.exports = {
+    getUsers, saveUsers, findUser, addUser, deleteUser,
+    getBuyers, saveBuyers, addBuyer,
+    getCrops, saveCrops, addCrop, updateCropStatus, removeCrop,
+    getDeals, saveDeals, addDeal, advanceDealStage,
+    getListings, saveListings, updateListingStatus, removeListing
+  };
+}

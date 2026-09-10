@@ -82,7 +82,7 @@ app.post('/api/register', async (req, res) => {
   const err = validateRegisterInput({ name, mobile, password, role });
   if (err) return res.status(400).json({ error: err });
 
-  if (db.findUser(mobile, role)) {
+  if (await db.findUser(mobile, role)) {
     return res.status(409).json({ error: 'An account with this ID already exists for this role. Try logging in instead.' });
   }
 
@@ -135,7 +135,7 @@ app.post('/api/login', async (req, res) => {
     return res.status(400).json({ error: 'Please fill in all fields.' });
   }
 
-  const user = db.findUser(mobile.trim(), role);
+  const user = await db.findUser(mobile.trim(), role);
   const genericError = { error: 'Invalid credentials. Check your ID, role and password.' };
   if (!user) return res.status(401).json(genericError);
 
@@ -151,8 +151,9 @@ app.post('/api/login', async (req, res) => {
 });
 
 // Confirm current session is valid
-app.get('/api/me', requireAuth, (req, res) => {
-  const fullUser = db.getUsers().find(u => u.id === req.user.id) || req.user;
+app.get('/api/me', requireAuth, async (req, res) => {
+  const users = await db.getUsers();
+  const fullUser = users.find(u => String(u.id) === String(req.user.id)) || req.user;
   res.json({
     user: {
       id: fullUser.id,
@@ -202,9 +203,9 @@ app.post('/api/crops', requireAuth, async (req, res) => {
 });
 
 // Query crops with optional filters
-app.get('/api/crops', (req, res) => {
+app.get('/api/crops', async (req, res) => {
   const { farmerId, search, crop, status } = req.query;
-  let crops = db.getCrops();
+  let crops = await db.getCrops(farmerId);
 
   if (farmerId) {
     crops = crops.filter(c => String(c.farmerId) === String(farmerId));
@@ -249,13 +250,13 @@ app.delete('/api/crops/:id', requireAuth, async (req, res) => {
 // ---------------- SEARCH: Specific Buyers & Farmers ----------------
 
 // Farmer searches for specific buyers / mandis
-app.get('/api/buyers/search', (req, res) => {
+app.get('/api/buyers/search', async (req, res) => {
   const query = (req.query.q || '').trim().toLowerCase();
   const type = (req.query.type || '').trim().toLowerCase();
-  let buyers = [...db.getBuyers()];
+  let buyers = [...(await db.getBuyers())];
 
   // Also include registered buyers from users store if not already present
-  const registeredBuyers = db.getUsers().filter(u => u.role === 'buyer');
+  const registeredBuyers = (await db.getUsers()).filter(u => u.role === 'buyer');
   registeredBuyers.forEach(rb => {
     if (!buyers.some(b => String(b.id) === String(rb.id) || b.mobile === rb.mobile)) {
       buyers.push({
@@ -293,11 +294,11 @@ app.get('/api/buyers/search', (req, res) => {
 });
 
 // Buyer searches for specific farmers & produce
-app.get('/api/farmers/search', (req, res) => {
+app.get('/api/farmers/search', async (req, res) => {
   const query = (req.query.q || '').trim().toLowerCase();
   const cropFilter = (req.query.crop || '').trim().toLowerCase();
-  const users = db.getUsers().filter(u => u.role === 'farmer');
-  const allCrops = db.getCrops();
+  const users = (await db.getUsers()).filter(u => u.role === 'farmer');
+  const allCrops = await db.getCrops();
 
   // Combine farmer profile with their produce
   let results = users.map(f => {
@@ -375,8 +376,8 @@ app.patch('/api/deals/:id/advance', requireAuth, async (req, res) => {
 });
 
 // Fetch deal history scoped to role
-app.get('/api/deals/history', requireAuth, (req, res) => {
-  const allDeals = db.getDeals();
+app.get('/api/deals/history', requireAuth, async (req, res) => {
+  const allDeals = await db.getDeals();
   let userDeals = [];
 
   if (req.user.role === 'farmer') {
@@ -402,10 +403,10 @@ app.get('/api/deals/history', requireAuth, (req, res) => {
 // ---------------- ADMINISTRATOR DIRECTORIES & ALL HISTORY ----------------
 
 // Admin: Users directory (List of all Farmers and Buyers)
-app.get('/api/admin/users', requireAuth, requireRole('admin'), (req, res) => {
-  const allUsers = db.getUsers();
-  const allCrops = db.getCrops();
-  const allDeals = db.getDeals();
+app.get('/api/admin/users', requireAuth, requireRole('admin'), async (req, res) => {
+  const allUsers = await db.getUsers();
+  const allCrops = await db.getCrops();
+  const allDeals = await db.getDeals();
 
   const farmers = allUsers.filter(u => u.role === 'farmer').map(f => {
     const crops = allCrops.filter(c => String(c.farmerId) === String(f.id));
@@ -446,8 +447,8 @@ app.get('/api/admin/users', requireAuth, requireRole('admin'), (req, res) => {
 });
 
 // Admin: All platform transaction history
-app.get('/api/admin/history', requireAuth, requireRole('admin'), (req, res) => {
-  const deals = db.getDeals();
+app.get('/api/admin/history', requireAuth, requireRole('admin'), async (req, res) => {
+  const deals = await db.getDeals();
   const totalVolume = deals.reduce((sum, d) => sum + (d.totalAmount || 0), 0);
   const completedDeals = deals.filter(d => d.status === 'completed');
   const inProgressDeals = deals.filter(d => d.status === 'in_progress');
@@ -464,11 +465,11 @@ app.get('/api/admin/history', requireAuth, requireRole('admin'), (req, res) => {
 });
 
 // Live counts for the admin dashboard
-app.get('/api/admin/stats', requireAuth, requireRole('admin'), (req, res) => {
-  const users = db.getUsers();
-  const listings = db.getListings();
-  const crops = db.getCrops();
-  const deals = db.getDeals();
+app.get('/api/admin/stats', requireAuth, requireRole('admin'), async (req, res) => {
+  const users = await db.getUsers();
+  const listings = await db.getListings();
+  const crops = await db.getCrops();
+  const deals = await db.getDeals();
 
   res.json({
     farmers: users.filter(u => u.role === 'farmer').length,
@@ -480,8 +481,8 @@ app.get('/api/admin/stats', requireAuth, requireRole('admin'), (req, res) => {
 });
 
 // Moderation listings
-app.get('/api/listings', requireAuth, requireRole('admin'), (req, res) => {
-  res.json({ listings: db.getListings() });
+app.get('/api/listings', requireAuth, requireRole('admin'), async (req, res) => {
+  res.json({ listings: await db.getListings() });
 });
 
 app.post('/api/listings/:id/approve', requireAuth, requireRole('admin'), async (req, res) => {
@@ -504,19 +505,30 @@ app.delete('/api/admin/users/:id', requireAuth, requireRole('admin'), async (req
 });
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'online',
-    uptimeSeconds: Math.floor(process.uptime()),
-    timestamp: new Date().toISOString(),
-    records: {
-      users: db.getUsers().length,
-      buyers: db.getBuyers().length,
-      crops: db.getCrops().length,
-      deals: db.getDeals().length,
-      listings: db.getListings().length
-    }
-  });
+app.get('/api/health', async (req, res) => {
+  try {
+    const isMySQL = Boolean(process.env.DB_HOST || process.env.MYSQL_URL || process.env.DATABASE_URL);
+    const users = await db.getUsers();
+    const buyers = await db.getBuyers();
+    const crops = await db.getCrops();
+    const deals = await db.getDeals();
+    const listings = await db.getListings();
+    res.json({
+      status: 'online',
+      engine: isMySQL ? 'mysql' : 'json',
+      uptimeSeconds: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString(),
+      records: {
+        users: users.length,
+        buyers: buyers.length,
+        crops: crops.length,
+        deals: deals.length,
+        listings: listings.length
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', error: err.message });
+  }
 });
 
 // Fallback to the SPA for any other route if frontend is available
