@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const fs = require('fs');
 
 const db = require('./db');
 const { signToken, requireAuth, requireRole, SESSION_MINUTES } = require('./middleware/auth');
@@ -16,9 +17,22 @@ const PORT = process.env.PORT || 3000;
 app.use(helmet({
   contentSecurityPolicy: false
 }));
-app.use(cors());
+app.use(cors({
+  origin: true,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json({ limit: '25kb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+
+// Serve frontend static files if running in monorepo, or public folder if present
+const frontendStaticDir = fs.existsSync(path.join(__dirname, '..', 'frontend'))
+  ? path.join(__dirname, '..', 'frontend')
+  : (fs.existsSync(path.join(__dirname, 'public')) ? path.join(__dirname, 'public') : null);
+
+if (frontendStaticDir) {
+  app.use(express.static(frontendStaticDir));
+}
 
 // Slow down brute-force guessing on auth routes specifically.
 const authLimiter = rateLimit({
@@ -505,9 +519,16 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Fallback to the SPA for any other route
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// Fallback to the SPA for any other route if frontend is available
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'API endpoint not found' });
+  }
+  if (frontendStaticDir) {
+    const indexPath = path.join(frontendStaticDir, 'index.html');
+    if (fs.existsSync(indexPath)) return res.sendFile(indexPath);
+  }
+  res.status(200).send('KisanLink Backend API is running. Access API endpoints at /api/... or view status at /api/health.');
 });
 
 app.listen(PORT, () => {

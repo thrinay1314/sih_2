@@ -1,0 +1,23 @@
+{
+  "name": "kisanlink-sih",
+  "version": "1.0.0",
+  "description": "KisanLink - Smart India Hackathon Prototype (Frontend & Backend)",
+  "private": true,
+  "scripts": {
+    "start": "npm --prefix backend start",
+    "start:backend": "npm --prefix backend start",
+    "start:frontend": "npm --prefix frontend start",
+    "install:backend": "npm --prefix backend install",
+    "install:all": "npm --prefix backend install",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev"
+  },
+  "keywords": [
+    "kisanlink",
+    "sih",
+    "agriculture",
+    "marketplace"
+  ],
+  "author": "",
+  "license": "ISC"
+}

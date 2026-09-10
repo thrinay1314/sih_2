@@ -1,0 +1,16 @@
+{
+  "name": "kisanlink-frontend",
+  "version": "1.0.0",
+  "description": "KisanLink frontend single-page web app",
+  "scripts": {
+    "start": "npx -y serve . -l 5000",
+    "dev": "npx -y serve . -l 5000"
+  },
+  "keywords": [
+    "kisanlink",
+    "frontend",
+    "sih"
+  ],
+  "author": "",
+  "license": "ISC"
+}

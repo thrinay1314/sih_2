@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: kisanlink-backend
+    env: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: SESSION_MINUTES
+        value: 60
+      - key: JWT_SECRET
+        generateValue: true
